@@ -92,6 +92,14 @@ class MainActivity : ComponentActivity() {
                 hideSplash()
             }
 
+            override fun onPageCommitVisible(view: WebView, url: String) {
+                // Fires when first content renders, unlike onPageFinished
+                // which waits for every subresource (including a font
+                // stylesheet that can hang on networks where Google is
+                // unreachable). The splash must never outlive first paint.
+                hideSplash()
+            }
+
             override fun onReceivedError(
                 view: WebView,
                 request: WebResourceRequest,
@@ -115,6 +123,16 @@ class MainActivity : ComponentActivity() {
 
         if (savedInstanceState == null) {
             webView.loadUrl(HOME_URL)
+            // Safety net: if the load stalls entirely (e.g. a hanging
+            // font stylesheet keeps onPageFinished from ever firing),
+            // never leave the user on the splash longer than 10s.
+            // If an error is showing, keep the splash so tap-to-retry
+            // stays visible.
+            webView.postDelayed({
+                if (splashError.visibility != View.VISIBLE) {
+                    hideSplash()
+                }
+            }, 10_000)
         }
     }
 
